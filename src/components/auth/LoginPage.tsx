@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Sun,
   Moon,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
@@ -24,6 +25,14 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  const handleUseDemo = async () => {
+    setEmail('admin@test.com');
+    setPassword('admin123');
+    setLocalError('');
+    clearError();
+    await signIn('admin@test.com', 'admin123');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +122,34 @@ export const LoginPage: React.FC = () => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Demo Account Quick Access Card */}
+          <div className="mb-5 p-3 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900 dark:text-indigo-200">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span>Akun Demo Pratinjau</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleUseDemo}
+                disabled={isLoading}
+                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Masuk Cepat &rarr;
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px] font-mono bg-white/80 dark:bg-zinc-900/80 p-2 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
+              <div>
+                <span className="block text-[10px] font-sans text-zinc-400">Username</span>
+                <span className="text-zinc-800 dark:text-zinc-200 font-semibold select-all">admin@test.com</span>
+              </div>
+              <div>
+                <span className="block text-[10px] font-sans text-zinc-400">Password</span>
+                <span className="text-zinc-800 dark:text-zinc-200 font-semibold select-all">admin123</span>
+              </div>
+            </div>
+          </div>
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
