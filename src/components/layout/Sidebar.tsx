@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo } from 'react';
 import { 
   BookmarkCheck, 
   Bookmark, 
@@ -8,16 +8,11 @@ import {
   Tag as TagIcon, 
   ChevronLeft, 
   ChevronRight, 
-  Download, 
-  Upload, 
-  RotateCcw,
   X,
-  Database,
   LogOut
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { isSupabaseConfigured } from '../../lib/supabase';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -30,14 +25,8 @@ export const Sidebar: React.FC = () => {
     isMobileMenuOpen,
     setMobileMenuOpen,
     setFolderModalOpen,
-    resetToDemo,
-    exportData,
-    importData,
-    addToast
   } = useBookmarkStore();
   const { user, signOut } = useAuthStore();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Counts calculations
   const totalAll = bookmarks.length;
@@ -65,36 +54,6 @@ export const Sidebar: React.FC = () => {
     }
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [bookmarks]);
-
-  // Export JSON file
-  const handleExport = () => {
-    const dataStr = exportData();
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `tautanku-backup-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    addToast('Ekspor Berhasil', 'Berkas cadangan JSON berhasil diunduh.', 'success');
-  };
-
-  // Import JSON file
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      if (content) {
-        importData(content);
-      }
-    };
-    reader.readAsText(file);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   const navContent = (
     <div className="flex flex-col h-full justify-between">
@@ -326,109 +285,45 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Utility Actions: Reset Demo, Export, Import */}
-      <div className="p-3 border-t border-zinc-200 dark:border-zinc-800/80 space-y-1 bg-zinc-50/70 dark:bg-zinc-950/40">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleImportFile}
-          className="hidden"
-        />
-
+      {/* Bottom User Profile & Logout Card */}
+      <div className="p-3 border-t border-zinc-200 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-950/40">
         {!isSidebarCollapsed ? (
-          <div className="space-y-1.5">
-            {/* Database Connection Status Badge */}
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium border mb-1 transition-colors ${
-              isSupabaseConfigured
-                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
-                : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
-            }`}>
-              <Database className={`w-3 h-3 ${isSupabaseConfigured ? 'text-emerald-500' : 'text-zinc-400'}`} />
-              <span className="truncate">
-                {isSupabaseConfigured ? 'Database Supabase Terhubung' : 'Penyimpanan: Mode Lokal'}
-              </span>
+          <div className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/90 dark:border-zinc-800/90 shadow-sm space-y-3">
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-base font-bold shadow-md shadow-indigo-500/20 shrink-0">
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                  {user?.user_metadata?.name || user?.email?.split('@')[0] || 'Pengguna'}
+                </p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate" title={user?.email || ''}>
+                  {user?.email || 'Akun Aktif'}
+                </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={handleExport}
-                title="Ekspor Data ke JSON"
-                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[11px] font-medium text-zinc-700 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 transition-colors shadow-xs"
-              >
-                <Download className="w-3 h-3" />
-                <span>Ekspor</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Impor Data dari JSON"
-                className="flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-[11px] font-medium text-zinc-700 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 transition-colors shadow-xs"
-              >
-                <Upload className="w-3 h-3" />
-                <span>Impor</span>
-              </button>
-            </div>
-
+            {/* Logout Button (Bigger, prominent, accessible) */}
             <button
               type="button"
-              onClick={resetToDemo}
-              title="Kembalikan Contoh Data Bawaan"
-              className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+              onClick={() => signOut()}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-500/30 text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-[0.99]"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span>Reset Data Demo</span>
+              <LogOut className="w-4 h-4" />
+              <span>Keluar dari Akun</span>
             </button>
-
-            {/* User Profile & Logout */}
-            {user && (
-              <div className="pt-2 mt-1 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-xs">
-                    {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 truncate leading-tight">
-                      {user.email?.split('@')[0]}
-                    </p>
-                    <p className="text-[9px] text-zinc-400 dark:text-zinc-500 truncate leading-tight">
-                      {user.email}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => signOut()}
-                  title="Keluar dari Akun"
-                  className="p-1 rounded-lg text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1">
-            <button
-              type="button"
-              onClick={resetToDemo}
-              title="Reset Data Demo"
-              className="p-2 rounded-lg text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-
+          <div className="flex flex-col items-center">
             {user && (
               <button
                 type="button"
                 onClick={() => signOut()}
                 title={`Keluar (${user.email})`}
-                className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                className="p-3 rounded-xl text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-rose-200/60 dark:border-rose-500/20 transition-all cursor-pointer shadow-xs"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-5 h-5" />
               </button>
             )}
           </div>

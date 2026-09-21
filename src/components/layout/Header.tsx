@@ -8,12 +8,15 @@ import {
   ArrowUpDown,
   X,
   Sun,
-  Moon
+  Moon,
+  LogOut
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { SortOption } from '../../types';
 
 export const Header: React.FC = () => {
+  const { user, signOut } = useAuthStore();
   const { 
     searchQuery, 
     setSearchQuery, 
@@ -149,12 +152,27 @@ export const Header: React.FC = () => {
         <button
           type="button"
           onClick={() => setAddModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/35 active:scale-95 transition-all"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/35 active:scale-95 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Tambah Tautan</span>
           <span className="sm:hidden">Tambah</span>
         </button>
+
+        {/* Top Right Corner Logout Button */}
+        {user && (
+          <div className="flex items-center pl-1 sm:pl-2 border-l border-zinc-200 dark:border-zinc-800/80">
+            <button
+              type="button"
+              onClick={() => signOut()}
+              title={`Keluar (${user.email})`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/80 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-zinc-700 dark:text-zinc-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-500/30 text-xs font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 text-rose-500" />
+              <span className="hidden sm:inline">Keluar</span>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
