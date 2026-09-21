@@ -11,9 +11,11 @@ import {
   Download, 
   Upload, 
   RotateCcw,
-  X
+  X,
+  Database
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
+import { isSupabaseConfigured } from '../../lib/supabase';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -332,7 +334,19 @@ export const Sidebar: React.FC = () => {
         />
 
         {!isSidebarCollapsed ? (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
+            {/* Database Connection Status Badge */}
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-medium border mb-1 transition-colors ${
+              isSupabaseConfigured
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+            }`}>
+              <Database className={`w-3 h-3 ${isSupabaseConfigured ? 'text-emerald-500' : 'text-zinc-400'}`} />
+              <span className="truncate">
+                {isSupabaseConfigured ? 'Database Supabase Terhubung' : 'Penyimpanan: Mode Lokal'}
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"

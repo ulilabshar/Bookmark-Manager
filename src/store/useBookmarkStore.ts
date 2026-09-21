@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Bookmark, Folder, ViewMode, SortOption, ActiveFilter, Toast, ThemeMode } from '../types';
 import { INITIAL_BOOKMARKS, INITIAL_FOLDERS } from '../data/initialData';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface BookmarkState {
   bookmarks: Bookmark[];
@@ -17,16 +18,18 @@ interface BookmarkState {
   editingBookmark: Bookmark | null;
   isFolderModalOpen: boolean;
   deletingBookmarkId: string | null;
+  isSyncing: boolean;
   toasts: Toast[];
 
   // Actions
-  addBookmark: (data: { url: string; title: string; description: string; folderId?: string; tags: string[]; isFavorite?: boolean }) => void;
-  updateBookmark: (id: string, data: Partial<Bookmark>) => void;
-  deleteBookmark: (id: string) => void;
-  toggleFavorite: (id: string) => void;
+  fetchFromSupabase: () => Promise<void>;
+  addBookmark: (data: { url: string; title: string; description: string; folderId?: string; tags: string[]; isFavorite?: boolean }) => Promise<void>;
+  updateBookmark: (id: string, data: Partial<Bookmark>) => Promise<void>;
+  deleteBookmark: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
   
-  addFolder: (name: string, icon?: string, color?: string) => void;
-  deleteFolder: (id: string) => void;
+  addFolder: (name: string, icon?: string, color?: string) => Promise<void>;
+  deleteFolder: (id: string) => Promise<void>;
 
   setViewMode: (mode: ViewMode) => void;
   setSortOption: (sort: SortOption) => void;
@@ -66,9 +69,52 @@ export const useBookmarkStore = create<BookmarkState>()(
       editingBookmark: null,
       isFolderModalOpen: false,
       deletingBookmarkId: null,
+      isSyncing: false,
       toasts: [],
 
-      addBookmark: (data) => {
+      fetchFromSupabase: async () => {
+        if (!supabase || !isSupabaseConfigured) return;
+        try {
+          set({ isSyncing: true });
+          const [foldersRes, bookmarksRes] = await Promise.all([
+            supabase.from('folders').select('*').order('created_at', { ascending: true }),
+            supabase.from('bookmarks').select('*').order('created_at', { ascending: false }),
+          ]);
+
+          if (foldersRes.data && foldersRes.data.length > 0) {
+            const mappedFolders: Folder[] = foldersRes.data.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              icon: f.icon || 'Folder',
+              color: f.color || '#6366f1',
+              createdAt: f.created_at,
+            }));
+            set({ folders: mappedFolders });
+          }
+
+          if (bookmarksRes.data && bookmarksRes.data.length > 0) {
+            const mappedBookmarks: Bookmark[] = bookmarksRes.data.map((b: any) => ({
+              id: b.id,
+              url: b.url,
+              title: b.title,
+              description: b.description || '',
+              folderId: b.folder_id || '',
+              tags: b.tags || [],
+              isFavorite: !!b.is_favorite,
+              faviconUrl: b.favicon_url,
+              createdAt: b.created_at,
+              updatedAt: b.updated_at,
+            }));
+            set({ bookmarks: mappedBookmarks });
+          }
+        } catch (error) {
+          console.error('Gagal mengambil data dari Supabase:', error);
+        } finally {
+          set({ isSyncing: false });
+        }
+      },
+
+      addBookmark: async (data) => {
         const newBookmark: Bookmark = {
           id: `bm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           url: data.url,
@@ -81,23 +127,60 @@ export const useBookmarkStore = create<BookmarkState>()(
           updatedAt: new Date().toISOString(),
         };
 
+        // Optimistic local update
         set((state) => ({
           bookmarks: [newBookmark, ...state.bookmarks],
         }));
 
         get().addToast('Tautan Berhasil Ditambahkan', newBookmark.title, 'success');
+
+        // Sync with Supabase if connected
+        if (supabase && isSupabaseConfigured) {
+          try {
+            await supabase.from('bookmarks').insert({
+              id: newBookmark.id,
+              url: newBookmark.url,
+              title: newBookmark.title,
+              description: newBookmark.description,
+              folder_id: newBookmark.folderId || null,
+              tags: newBookmark.tags,
+              is_favorite: newBookmark.isFavorite,
+              created_at: newBookmark.createdAt,
+              updated_at: newBookmark.updatedAt,
+            });
+          } catch (err) {
+            console.error('Gagal menyimpan tautan ke Supabase:', err);
+          }
+        }
       },
 
-      updateBookmark: (id, updates) => {
+      updateBookmark: async (id, updates) => {
+        const updatedAt = new Date().toISOString();
         set((state) => ({
           bookmarks: state.bookmarks.map((bm) =>
-            bm.id === id ? { ...bm, ...updates, updatedAt: new Date().toISOString() } : bm
+            bm.id === id ? { ...bm, ...updates, updatedAt } : bm
           ),
         }));
         get().addToast('Tautan Diperbarui', 'Perubahan berhasil disimpan.', 'success');
+
+        if (supabase && isSupabaseConfigured) {
+          try {
+            const payload: any = { updated_at: updatedAt };
+            if (updates.url !== undefined) payload.url = updates.url;
+            if (updates.title !== undefined) payload.title = updates.title;
+            if (updates.description !== undefined) payload.description = updates.description;
+            if (updates.folderId !== undefined) payload.folder_id = updates.folderId || null;
+            if (updates.tags !== undefined) payload.tags = updates.tags;
+            if (updates.isFavorite !== undefined) payload.is_favorite = updates.isFavorite;
+
+            await supabase.from('bookmarks').update(payload).eq('id', id);
+          } catch (err) {
+            console.error('Gagal memperbarui tautan di Supabase:', err);
+          }
+        }
       },
 
-      deleteBookmark: (id) => {
+      deleteBookmark: async (id) => {
         const target = get().bookmarks.find((bm) => bm.id === id);
         set((state) => ({
           bookmarks: state.bookmarks.filter((bm) => bm.id !== id),
@@ -106,9 +189,17 @@ export const useBookmarkStore = create<BookmarkState>()(
         if (target) {
           get().addToast('Tautan Dihapus', `"${target.title}" telah dihapus.`, 'info');
         }
+
+        if (supabase && isSupabaseConfigured) {
+          try {
+            await supabase.from('bookmarks').delete().eq('id', id);
+          } catch (err) {
+            console.error('Gagal menghapus tautan dari Supabase:', err);
+          }
+        }
       },
 
-      toggleFavorite: (id) => {
+      toggleFavorite: async (id) => {
         const item = get().bookmarks.find((bm) => bm.id === id);
         const willFavorite = item ? !item.isFavorite : false;
         
@@ -125,9 +216,17 @@ export const useBookmarkStore = create<BookmarkState>()(
             'info'
           );
         }
+
+        if (supabase && isSupabaseConfigured) {
+          try {
+            await supabase.from('bookmarks').update({ is_favorite: willFavorite }).eq('id', id);
+          } catch (err) {
+            console.error('Gagal mengubah status favorit di Supabase:', err);
+          }
+        }
       },
 
-      addFolder: (name, icon = 'Folder', color = '#6366f1') => {
+      addFolder: async (name, icon = 'Folder', color = '#6366f1') => {
         const trimmed = name.trim();
         if (!trimmed) return;
         
@@ -144,9 +243,23 @@ export const useBookmarkStore = create<BookmarkState>()(
         }));
 
         get().addToast('Folder Dibuat', `Koleksi "${trimmed}" berhasil dibuat.`, 'success');
+
+        if (supabase && isSupabaseConfigured) {
+          try {
+            await supabase.from('folders').insert({
+              id: newFolder.id,
+              name: newFolder.name,
+              icon: newFolder.icon,
+              color: newFolder.color,
+              created_at: newFolder.createdAt,
+            });
+          } catch (err) {
+            console.error('Gagal membuat folder di Supabase:', err);
+          }
+        }
       },
 
-      deleteFolder: (id) => {
+      deleteFolder: async (id) => {
         const folder = get().folders.find((f) => f.id === id);
         set((state) => ({
           folders: state.folders.filter((f) => f.id !== id),
@@ -160,6 +273,14 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         if (folder) {
           get().addToast('Folder Dihapus', `Koleksi "${folder.name}" telah dihapus.`, 'info');
+        }
+
+        if (supabase && isSupabaseConfigured) {
+          try {
+            await supabase.from('folders').delete().eq('id', id);
+          } catch (err) {
+            console.error('Gagal menghapus folder di Supabase:', err);
+          }
         }
       },
 
