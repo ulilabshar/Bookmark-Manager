@@ -76,13 +76,15 @@ export const useBookmarkStore = create<BookmarkState>()(
         if (!supabase || !isSupabaseConfigured) return;
         try {
           set({ isSyncing: true });
-          const [foldersRes, bookmarksRes] = await Promise.all([
-            supabase.from('folders').select('*').order('created_at', { ascending: true }),
-            supabase.from('bookmarks').select('*').order('created_at', { ascending: false }),
-          ]);
 
-          if (foldersRes.data && foldersRes.data.length > 0) {
-            const mappedFolders: Folder[] = foldersRes.data.map((f: any) => ({
+          // 1. Fetch folders
+          const { data: foldersData, error: foldersErr } = await supabase
+            .from('folders')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+          if (!foldersErr && foldersData && foldersData.length > 0) {
+            const mappedFolders: Folder[] = foldersData.map((f: any) => ({
               id: f.id,
               name: f.name,
               icon: f.icon || 'Folder',
@@ -92,8 +94,14 @@ export const useBookmarkStore = create<BookmarkState>()(
             set({ folders: mappedFolders });
           }
 
-          if (bookmarksRes.data && bookmarksRes.data.length > 0) {
-            const mappedBookmarks: Bookmark[] = bookmarksRes.data.map((b: any) => ({
+          // 2. Fetch bookmarks
+          const { data: bookmarksData, error: bookmarksErr } = await supabase
+            .from('bookmarks')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!bookmarksErr && bookmarksData && bookmarksData.length > 0) {
+            const mappedBookmarks: Bookmark[] = bookmarksData.map((b: any) => ({
               id: b.id,
               url: b.url,
               title: b.title,
@@ -134,22 +142,46 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         get().addToast('Tautan Berhasil Ditambahkan', newBookmark.title, 'success');
 
-        // Sync with Supabase if connected
+        // Sync with Supabase
         if (supabase && isSupabaseConfigured) {
           try {
-            await supabase.from('bookmarks').insert({
+            let validFolderId: string | null = null;
+            if (newBookmark.folderId && newBookmark.folderId.trim() !== '') {
+              // Ensure folder exists in Supabase
+              const targetFolder = get().folders.find((f) => f.id === newBookmark.folderId);
+              if (targetFolder) {
+                await supabase.from('folders').upsert({
+                  id: targetFolder.id,
+                  name: targetFolder.name,
+                  icon: targetFolder.icon || 'Folder',
+                  color: targetFolder.color || '#6366f1',
+                  created_at: targetFolder.createdAt,
+                });
+                validFolderId = targetFolder.id;
+              }
+            }
+
+            const { error } = await supabase.from('bookmarks').insert({
               id: newBookmark.id,
               url: newBookmark.url,
               title: newBookmark.title,
               description: newBookmark.description,
-              folder_id: newBookmark.folderId || null,
+              folder_id: validFolderId,
               tags: newBookmark.tags,
               is_favorite: newBookmark.isFavorite,
               created_at: newBookmark.createdAt,
               updated_at: newBookmark.updatedAt,
             });
-          } catch (err) {
+
+            if (error) {
+              console.error('Gagal menyimpan ke Supabase:', error);
+              get().addToast('Peringatan Database', `Supabase: ${error.message}`, 'warning');
+            } else {
+              get().addToast('Tersimpan di Supabase', 'Data berhasil disinkronkan ke database cloud.', 'success');
+            }
+          } catch (err: any) {
             console.error('Gagal menyimpan tautan ke Supabase:', err);
+            get().addToast('Peringatan Database', err?.message || 'Gagal terhubung ke Supabase', 'warning');
           }
         }
       },
@@ -173,7 +205,10 @@ export const useBookmarkStore = create<BookmarkState>()(
             if (updates.tags !== undefined) payload.tags = updates.tags;
             if (updates.isFavorite !== undefined) payload.is_favorite = updates.isFavorite;
 
-            await supabase.from('bookmarks').update(payload).eq('id', id);
+            const { error } = await supabase.from('bookmarks').update(payload).eq('id', id);
+            if (error) {
+              console.error('Gagal update di Supabase:', error);
+            }
           } catch (err) {
             console.error('Gagal memperbarui tautan di Supabase:', err);
           }
@@ -192,7 +227,10 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         if (supabase && isSupabaseConfigured) {
           try {
-            await supabase.from('bookmarks').delete().eq('id', id);
+            const { error } = await supabase.from('bookmarks').delete().eq('id', id);
+            if (error) {
+              console.error('Gagal menghapus dari Supabase:', error);
+            }
           } catch (err) {
             console.error('Gagal menghapus tautan dari Supabase:', err);
           }
@@ -219,7 +257,10 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         if (supabase && isSupabaseConfigured) {
           try {
-            await supabase.from('bookmarks').update({ is_favorite: willFavorite }).eq('id', id);
+            const { error } = await supabase.from('bookmarks').update({ is_favorite: willFavorite }).eq('id', id);
+            if (error) {
+              console.error('Gagal toggle favorit di Supabase:', error);
+            }
           } catch (err) {
             console.error('Gagal mengubah status favorit di Supabase:', err);
           }
@@ -246,13 +287,16 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         if (supabase && isSupabaseConfigured) {
           try {
-            await supabase.from('folders').insert({
+            const { error } = await supabase.from('folders').insert({
               id: newFolder.id,
               name: newFolder.name,
               icon: newFolder.icon,
               color: newFolder.color,
               created_at: newFolder.createdAt,
             });
+            if (error) {
+              console.error('Gagal insert folder di Supabase:', error);
+            }
           } catch (err) {
             console.error('Gagal membuat folder di Supabase:', err);
           }
@@ -277,7 +321,10 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         if (supabase && isSupabaseConfigured) {
           try {
-            await supabase.from('folders').delete().eq('id', id);
+            const { error } = await supabase.from('folders').delete().eq('id', id);
+            if (error) {
+              console.error('Gagal delete folder di Supabase:', error);
+            }
           } catch (err) {
             console.error('Gagal menghapus folder di Supabase:', err);
           }
