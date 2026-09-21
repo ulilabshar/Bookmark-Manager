@@ -12,9 +12,11 @@ import {
   Upload, 
   RotateCcw,
   X,
-  Database
+  Database,
+  LogOut
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { isSupabaseConfigured } from '../../lib/supabase';
 
 export const Sidebar: React.FC = () => {
@@ -33,6 +35,7 @@ export const Sidebar: React.FC = () => {
     importData,
     addToast
   } = useBookmarkStore();
+  const { user, signOut } = useAuthStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -378,6 +381,34 @@ export const Sidebar: React.FC = () => {
               <RotateCcw className="w-3 h-3" />
               <span>Reset Data Demo</span>
             </button>
+
+            {/* User Profile & Logout */}
+            {user && (
+              <div className="pt-2 mt-1 border-t border-zinc-200 dark:border-zinc-800/80 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0 shadow-xs">
+                    {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 truncate leading-tight">
+                      {user.email?.split('@')[0]}
+                    </p>
+                    <p className="text-[9px] text-zinc-400 dark:text-zinc-500 truncate leading-tight">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  title="Keluar dari Akun"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1">
@@ -389,6 +420,17 @@ export const Sidebar: React.FC = () => {
             >
               <RotateCcw className="w-4 h-4" />
             </button>
+
+            {user && (
+              <button
+                type="button"
+                onClick={() => signOut()}
+                title={`Keluar (${user.email})`}
+                className="p-2 rounded-lg text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
