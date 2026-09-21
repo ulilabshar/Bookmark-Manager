@@ -17,49 +17,31 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 
 export const LoginPage: React.FC = () => {
-  const { signIn, signUp, isLoading, error, clearError } = useAuthStore();
+  const { signIn, isLoading, error, clearError } = useAuthStore();
   const { theme, toggleTheme } = useBookmarkStore();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
     setLocalError('');
-    setSuccessMessage('');
 
     if (!email.trim() || !password.trim()) {
       setLocalError('Harap isi alamat email dan kata sandi.');
       return;
     }
 
-    if (password.length < 6) {
-      setLocalError('Kata sandi minimal harus terdiri dari 6 karakter.');
-      return;
-    }
-
-    if (mode === 'signin') {
-      const res = await signIn(email, password);
-      if (!res.success) {
-        setLocalError(
-          res.error === 'Invalid login credentials'
-            ? 'Email atau kata sandi tidak cocok. Silakan coba lagi.'
-            : res.error || 'Gagal masuk ke akun.'
-        );
-      }
-    } else {
-      const res = await signUp(email, password);
-      if (!res.success) {
-        setLocalError(res.error || 'Gagal mendaftarkan akun.');
-      } else {
-        setSuccessMessage('Akun berhasil didaftarkan! Anda sekarang dapat masuk.');
-        setMode('signin');
-      }
+    const res = await signIn(email, password);
+    if (!res.success) {
+      setLocalError(
+        res.error === 'Invalid login credentials'
+          ? 'Email atau kata sandi tidak cocok. Silakan periksa kembali.'
+          : res.error || 'Gagal masuk ke akun.'
+      );
     }
   };
 
@@ -110,47 +92,11 @@ export const LoginPage: React.FC = () => {
               <ShieldCheck className="w-6 h-6" />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              {mode === 'signin' ? 'Akses Khusus Pemilik' : 'Daftar Akun Pemilik'}
+              Akses Khusus Pemilik
             </h1>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed max-w-xs mx-auto">
-              {mode === 'signin'
-                ? 'Masuk dengan kredensial terdaftar untuk membuka dan mengelola tautan tersimpan Anda.'
-                : 'Buat akun pemilik pertama Anda untuk mengamankan akses ke seluruh koleksi tautan.'}
+              Silakan masuk menggunakan kredensial akun terdaftar untuk membuka dan mengelola seluruh tautan Anda.
             </p>
-          </div>
-
-          {/* Mode Switcher Tabs */}
-          <div className="flex p-1 mb-6 rounded-xl bg-zinc-100 dark:bg-zinc-950/80 border border-zinc-200/80 dark:border-zinc-800/80">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signin');
-                clearError();
-                setLocalError('');
-              }}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                mode === 'signin'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-              }`}
-            >
-              Masuk
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                clearError();
-                setLocalError('');
-              }}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                mode === 'signup'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'
-              }`}
-            >
-              Daftar Akun
-            </button>
           </div>
 
           {/* Error Alert */}
@@ -160,27 +106,15 @@ export const LoginPage: React.FC = () => {
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs mb-4"
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 text-xs mb-5"
               >
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="leading-snug">{activeError}</span>
               </motion.div>
             )}
-
-            {successMessage && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs mb-4"
-              >
-                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-snug">{successMessage}</span>
-              </motion.div>
-            )}
           </AnimatePresence>
 
-          {/* Auth Form */}
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div>
@@ -214,7 +148,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
-                  placeholder="Minimal 6 karakter"
+                  placeholder="Masukkan kata sandi akun"
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
@@ -242,16 +176,23 @@ export const LoginPage: React.FC = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses...</span>
+                  <span>Memeriksa kredensial...</span>
                 </>
               ) : (
                 <>
-                  <span>{mode === 'signin' ? 'Buka Dasbor' : 'Daftarkan Akun'}</span>
+                  <span>Buka Dasbor</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
+
+          {/* Security Notice */}
+          <div className="mt-6 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 text-center">
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 leading-relaxed">
+              🔒 Pendaftaran akun publik dinonaktifkan demi privasi. Akun hanya dapat dibuat melalui panel administratif Supabase.
+            </p>
+          </div>
         </motion.div>
       </main>
 
