@@ -33,8 +33,8 @@ Aplikasi web **Pengelola Tautan Tersimpan** (*Bookmark Manager*) yang modern, mi
 
 ### 1. Klon Repositori
 ```bash
-git clone https://github.com/ulilabshar/Project-Manager.git
-cd Project-Manager
+git clone https://github.com/ulilabshar/Bookmark-Manager.git
+cd Bookmark-Manager
 ```
 
 ### 2. Pasang Dependensi
