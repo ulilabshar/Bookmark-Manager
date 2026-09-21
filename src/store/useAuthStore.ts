@@ -179,6 +179,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     localStorage.removeItem(DEMO_STORAGE_KEY);
+    localStorage.removeItem('tautanku-storage-v1');
+    localStorage.removeItem('tautanku-storage-v2');
 
     if (!supabase || !isSupabaseConfigured) {
       set({ user: null, session: null, isLoading: false, error: null });

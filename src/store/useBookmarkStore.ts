@@ -56,7 +56,7 @@ interface BookmarkState {
 export const useBookmarkStore = create<BookmarkState>()(
   persist(
     (set, get) => ({
-      bookmarks: INITIAL_BOOKMARKS,
+      bookmarks: [],
       folders: INITIAL_FOLDERS,
       viewMode: 'grid',
       sortOption: 'newest',
@@ -73,6 +73,16 @@ export const useBookmarkStore = create<BookmarkState>()(
       toasts: [],
 
       fetchFromSupabase: async () => {
+        // Cek jika sedang mode demo
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (isDemo) {
+          // Jika akun demo dan belum ada bookmark, muat INITIAL_BOOKMARKS untuk demo saja
+          if (get().bookmarks.length === 0) {
+            set({ bookmarks: INITIAL_BOOKMARKS });
+          }
+          return;
+        }
+
         if (!supabase || !isSupabaseConfigured) return;
         try {
           set({ isSyncing: true });
@@ -100,7 +110,7 @@ export const useBookmarkStore = create<BookmarkState>()(
             .select('*')
             .order('created_at', { ascending: false });
 
-          if (!bookmarksErr && bookmarksData && bookmarksData.length > 0) {
+          if (!bookmarksErr && bookmarksData) {
             const mappedBookmarks: Bookmark[] = bookmarksData.map((b: any) => ({
               id: b.id,
               url: b.url,
@@ -420,7 +430,7 @@ export const useBookmarkStore = create<BookmarkState>()(
       },
     }),
     {
-      name: 'tautanku-storage-v1',
+      name: 'tautanku-storage-v2',
       partialize: (state) => ({
         bookmarks: state.bookmarks,
         folders: state.folders,
