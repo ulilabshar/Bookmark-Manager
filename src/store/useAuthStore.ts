@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useBookmarkStore } from './useBookmarkStore';
 
 interface AuthState {
   user: User | null;
@@ -19,7 +20,7 @@ const DEMO_EMAIL = 'admin@test.com';
 const DEMO_PASSWORD = 'admin123';
 const DEMO_STORAGE_KEY = 'tautanku_demo_session';
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   session: null,
   isLoading: true,
@@ -63,9 +64,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         // Jika sedang mode demo, jangan ditimpa session null dari supabase
         if (localStorage.getItem(DEMO_STORAGE_KEY)) return;
 
+        const newUser = session?.user ?? null;
+        const prevUser = get().user;
+
+        if (prevUser?.id !== newUser?.id) {
+          useBookmarkStore.getState().clearStore();
+        }
+
         set({
           session,
-          user: session?.user ?? null,
+          user: newUser,
           isLoading: false,
         });
       });
@@ -130,6 +138,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       localStorage.removeItem(DEMO_STORAGE_KEY);
+      useBookmarkStore.getState().clearStore();
+
       set({
         session: data.session,
         user: data.user,
@@ -162,6 +172,8 @@ export const useAuthStore = create<AuthState>((set) => ({
         return { success: false, error: error.message };
       }
 
+      useBookmarkStore.getState().clearStore();
+
       set({
         session: data.session,
         user: data.user,
@@ -181,6 +193,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem(DEMO_STORAGE_KEY);
     localStorage.removeItem('tautanku-storage-v1');
     localStorage.removeItem('tautanku-storage-v2');
+    localStorage.removeItem('tautanku-storage-v3');
+
+    // Bersihkan bookmark store secara tuntas
+    useBookmarkStore.getState().clearStore();
 
     if (!supabase || !isSupabaseConfigured) {
       set({ user: null, session: null, isLoading: false, error: null });

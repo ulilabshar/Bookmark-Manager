@@ -20,9 +20,11 @@ interface BookmarkState {
   deletingBookmarkId: string | null;
   isSyncing: boolean;
   toasts: Toast[];
+  currentUserId: string | null;
 
   // Actions
   fetchFromSupabase: () => Promise<void>;
+  clearStore: () => void;
   addBookmark: (data: { url: string; title: string; description: string; folderId?: string; tags: string[]; isFavorite?: boolean }) => Promise<void>;
   updateBookmark: (id: string, data: Partial<Bookmark>) => Promise<void>;
   deleteBookmark: (id: string) => Promise<void>;
@@ -71,43 +73,94 @@ export const useBookmarkStore = create<BookmarkState>()(
       deletingBookmarkId: null,
       isSyncing: false,
       toasts: [],
+      currentUserId: null,
+
+      clearStore: () => {
+        set({
+          bookmarks: [],
+          folders: INITIAL_FOLDERS,
+          searchQuery: '',
+          activeFilter: { type: 'all', label: 'Semua Tautan' },
+          currentUserId: null,
+        });
+      },
 
       fetchFromSupabase: async () => {
         // Cek jika sedang mode demo
         const isDemo = localStorage.getItem('tautanku_demo_session');
         if (isDemo) {
-          // Jika akun demo dan belum ada bookmark, muat INITIAL_BOOKMARKS untuk demo saja
           if (get().bookmarks.length === 0) {
-            set({ bookmarks: INITIAL_BOOKMARKS });
+            set({ bookmarks: INITIAL_BOOKMARKS, currentUserId: 'demo-admin-user-id' });
           }
           return;
         }
 
         if (!supabase || !isSupabaseConfigured) return;
+
+        // Ambil session dan user aktif saat ini
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUser = sessionData?.session?.user;
+        if (!currentUser) {
+          return;
+        }
+
+        // Jika user yang aktif berbeda dengan user di store, bersihkan data lokal dulu
+        if (get().currentUserId && get().currentUserId !== currentUser.id) {
+          set({ bookmarks: [], currentUserId: currentUser.id });
+        }
+
         try {
           set({ isSyncing: true });
 
-          // 1. Fetch folders
+          // Auto-claim: jika user ini memiliki bookmark lokal yang sebelumnya tersimpan dengan user_id null di Supabase
+          const localBmIds = get().bookmarks.map((b) => b.id);
+          if (localBmIds.length > 0) {
+            try {
+              await supabase
+                .from('bookmarks')
+                .update({ user_id: currentUser.id })
+                .in('id', localBmIds)
+                .is('user_id', null);
+
+              const localCustomFolderIds = get().folders
+                .map((f) => f.id)
+                .filter((id) => !['folder-work', 'folder-inspiration', 'folder-readlater', 'folder-devtools'].includes(id));
+              if (localCustomFolderIds.length > 0) {
+                await supabase
+                  .from('folders')
+                  .update({ user_id: currentUser.id })
+                  .in('id', localCustomFolderIds)
+                  .is('user_id', null);
+              }
+            } catch (claimErr) {
+              console.warn('Auto-claim error:', claimErr);
+            }
+          }
+
+          // 1. Fetch folders: hanya folder milik user aktif ATAU folder bawaan (user_id IS NULL)
           const { data: foldersData, error: foldersErr } = await supabase
             .from('folders')
             .select('*')
+            .or(`user_id.eq.${currentUser.id},user_id.is.null`)
             .order('created_at', { ascending: true });
 
-          if (!foldersErr && foldersData && foldersData.length > 0) {
+          if (!foldersErr && foldersData) {
             const mappedFolders: Folder[] = foldersData.map((f: any) => ({
               id: f.id,
               name: f.name,
               icon: f.icon || 'Folder',
               color: f.color || '#6366f1',
               createdAt: f.created_at,
+              userId: f.user_id,
             }));
             set({ folders: mappedFolders });
           }
 
-          // 2. Fetch bookmarks
+          // 2. Fetch bookmarks: HANYA bookmark milik user aktif!
           const { data: bookmarksData, error: bookmarksErr } = await supabase
             .from('bookmarks')
             .select('*')
+            .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false });
 
           if (!bookmarksErr && bookmarksData) {
@@ -122,8 +175,9 @@ export const useBookmarkStore = create<BookmarkState>()(
               faviconUrl: b.favicon_url,
               createdAt: b.created_at,
               updatedAt: b.updated_at,
+              userId: b.user_id,
             }));
-            set({ bookmarks: mappedBookmarks });
+            set({ bookmarks: mappedBookmarks, currentUserId: currentUser.id });
           }
         } catch (error) {
           console.error('Gagal mengambil data dari Supabase:', error);
@@ -133,6 +187,12 @@ export const useBookmarkStore = create<BookmarkState>()(
       },
 
       addBookmark: async (data) => {
+        let currentUserId: string | undefined = undefined;
+        if (supabase && isSupabaseConfigured) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          currentUserId = sessionData?.session?.user?.id;
+        }
+
         const newBookmark: Bookmark = {
           id: `bm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           url: data.url,
@@ -143,6 +203,7 @@ export const useBookmarkStore = create<BookmarkState>()(
           isFavorite: !!data.isFavorite,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          userId: currentUserId,
         };
 
         // Optimistic local update
@@ -152,12 +213,13 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         get().addToast('Tautan Berhasil Ditambahkan', newBookmark.title, 'success');
 
-        // Sync with Supabase
-        if (supabase && isSupabaseConfigured) {
+        // Sync with Supabase (khusus akun asli)
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && currentUserId && !isDemo) {
           try {
             let validFolderId: string | null = null;
             if (newBookmark.folderId && newBookmark.folderId.trim() !== '') {
-              // Ensure folder exists in Supabase
+              // Pastikan folder ada di Supabase
               const targetFolder = get().folders.find((f) => f.id === newBookmark.folderId);
               if (targetFolder) {
                 await supabase.from('folders').upsert({
@@ -166,6 +228,7 @@ export const useBookmarkStore = create<BookmarkState>()(
                   icon: targetFolder.icon || 'Folder',
                   color: targetFolder.color || '#6366f1',
                   created_at: targetFolder.createdAt,
+                  user_id: currentUserId,
                 });
                 validFolderId = targetFolder.id;
               }
@@ -181,6 +244,7 @@ export const useBookmarkStore = create<BookmarkState>()(
               is_favorite: newBookmark.isFavorite,
               created_at: newBookmark.createdAt,
               updated_at: newBookmark.updatedAt,
+              user_id: currentUserId,
             });
 
             if (error) {
@@ -205,8 +269,13 @@ export const useBookmarkStore = create<BookmarkState>()(
         }));
         get().addToast('Tautan Diperbarui', 'Perubahan berhasil disimpan.', 'success');
 
-        if (supabase && isSupabaseConfigured) {
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && !isDemo) {
           try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const currentUserId = sessionData?.session?.user?.id;
+            if (!currentUserId) return;
+
             const payload: any = { updated_at: updatedAt };
             if (updates.url !== undefined) payload.url = updates.url;
             if (updates.title !== undefined) payload.title = updates.title;
@@ -215,7 +284,12 @@ export const useBookmarkStore = create<BookmarkState>()(
             if (updates.tags !== undefined) payload.tags = updates.tags;
             if (updates.isFavorite !== undefined) payload.is_favorite = updates.isFavorite;
 
-            const { error } = await supabase.from('bookmarks').update(payload).eq('id', id);
+            const { error } = await supabase
+              .from('bookmarks')
+              .update(payload)
+              .eq('id', id)
+              .eq('user_id', currentUserId);
+
             if (error) {
               console.error('Gagal update di Supabase:', error);
             }
@@ -235,9 +309,19 @@ export const useBookmarkStore = create<BookmarkState>()(
           get().addToast('Tautan Dihapus', `"${target.title}" telah dihapus.`, 'info');
         }
 
-        if (supabase && isSupabaseConfigured) {
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && !isDemo) {
           try {
-            const { error } = await supabase.from('bookmarks').delete().eq('id', id);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const currentUserId = sessionData?.session?.user?.id;
+            if (!currentUserId) return;
+
+            const { error } = await supabase
+              .from('bookmarks')
+              .delete()
+              .eq('id', id)
+              .eq('user_id', currentUserId);
+
             if (error) {
               console.error('Gagal menghapus dari Supabase:', error);
             }
@@ -265,9 +349,19 @@ export const useBookmarkStore = create<BookmarkState>()(
           );
         }
 
-        if (supabase && isSupabaseConfigured) {
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && !isDemo) {
           try {
-            const { error } = await supabase.from('bookmarks').update({ is_favorite: willFavorite }).eq('id', id);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const currentUserId = sessionData?.session?.user?.id;
+            if (!currentUserId) return;
+
+            const { error } = await supabase
+              .from('bookmarks')
+              .update({ is_favorite: willFavorite })
+              .eq('id', id)
+              .eq('user_id', currentUserId);
+
             if (error) {
               console.error('Gagal toggle favorit di Supabase:', error);
             }
@@ -281,12 +375,19 @@ export const useBookmarkStore = create<BookmarkState>()(
         const trimmed = name.trim();
         if (!trimmed) return;
         
+        let currentUserId: string | undefined = undefined;
+        if (supabase && isSupabaseConfigured) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          currentUserId = sessionData?.session?.user?.id;
+        }
+
         const newFolder: Folder = {
           id: `folder-${Date.now()}`,
           name: trimmed,
           icon,
           color,
           createdAt: new Date().toISOString(),
+          userId: currentUserId,
         };
 
         set((state) => ({
@@ -295,7 +396,8 @@ export const useBookmarkStore = create<BookmarkState>()(
 
         get().addToast('Folder Dibuat', `Koleksi "${trimmed}" berhasil dibuat.`, 'success');
 
-        if (supabase && isSupabaseConfigured) {
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && currentUserId && !isDemo) {
           try {
             const { error } = await supabase.from('folders').insert({
               id: newFolder.id,
@@ -303,6 +405,7 @@ export const useBookmarkStore = create<BookmarkState>()(
               icon: newFolder.icon,
               color: newFolder.color,
               created_at: newFolder.createdAt,
+              user_id: currentUserId,
             });
             if (error) {
               console.error('Gagal insert folder di Supabase:', error);
@@ -329,9 +432,19 @@ export const useBookmarkStore = create<BookmarkState>()(
           get().addToast('Folder Dihapus', `Koleksi "${folder.name}" telah dihapus.`, 'info');
         }
 
-        if (supabase && isSupabaseConfigured) {
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && !isDemo) {
           try {
-            const { error } = await supabase.from('folders').delete().eq('id', id);
+            const { data: sessionData } = await supabase.auth.getSession();
+            const currentUserId = sessionData?.session?.user?.id;
+            if (!currentUserId) return;
+
+            const { error } = await supabase
+              .from('folders')
+              .delete()
+              .eq('id', id)
+              .eq('user_id', currentUserId);
+
             if (error) {
               console.error('Gagal delete folder di Supabase:', error);
             }
@@ -430,7 +543,7 @@ export const useBookmarkStore = create<BookmarkState>()(
       },
     }),
     {
-      name: 'tautanku-storage-v2',
+      name: 'tautanku-storage-v3',
       partialize: (state) => ({
         bookmarks: state.bookmarks,
         folders: state.folders,
@@ -438,6 +551,7 @@ export const useBookmarkStore = create<BookmarkState>()(
         sortOption: state.sortOption,
         isSidebarCollapsed: state.isSidebarCollapsed,
         theme: state.theme,
+        currentUserId: state.currentUserId,
       }),
       onRehydrateStorage: () => (state) => {
         if (state && typeof document !== 'undefined') {

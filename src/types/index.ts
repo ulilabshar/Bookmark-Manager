@@ -9,6 +9,7 @@ export interface Bookmark {
   faviconUrl?: string;
   createdAt: string;
   updatedAt: string;
+  userId?: string;
 }
 
 export interface Folder {
@@ -17,6 +18,7 @@ export interface Folder {
   icon?: string; // Lucide icon name
   color?: string; // hex or tailwind color
   createdAt: string;
+  userId?: string;
 }
 
 export type ViewMode = 'grid' | 'list';

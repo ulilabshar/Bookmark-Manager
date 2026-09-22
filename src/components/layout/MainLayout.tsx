@@ -7,13 +7,15 @@ import { DeleteConfirmModal } from '../bookmarks/DeleteConfirmModal';
 import { FolderModal } from '../folders/FolderModal';
 import { ToastContainer } from '../ui/Toast';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export const MainLayout: React.FC = () => {
   const { fetchFromSupabase } = useBookmarkStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     fetchFromSupabase();
-  }, [fetchFromSupabase]);
+  }, [user?.id, fetchFromSupabase]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-row transition-colors duration-200">
