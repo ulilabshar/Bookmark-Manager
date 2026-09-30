@@ -1,15 +1,19 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuthStore } from './store/useAuthStore';
 import { LoginPage } from './components/auth/LoginPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { BookmarkCheck, Loader2 } from 'lucide-react';
 
 function App() {
-  const { user, isLoading, initAuth } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const initialized = useRef(false);
 
   useEffect(() => {
-    initAuth();
-  }, [initAuth]);
+    if (initialized.current) return;
+    initialized.current = true;
+    useAuthStore.getState().initAuth();
+  }, []);
 
   // Loading splash state
   if (isLoading) {
