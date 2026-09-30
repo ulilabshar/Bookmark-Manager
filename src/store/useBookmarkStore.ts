@@ -17,6 +17,7 @@ interface BookmarkState {
   isAddModalOpen: boolean;
   editingBookmark: Bookmark | null;
   isFolderModalOpen: boolean;
+  editingFolder: Folder | null;
   deletingBookmarkId: string | null;
   isSyncing: boolean;
   toasts: Toast[];
@@ -31,7 +32,9 @@ interface BookmarkState {
   toggleFavorite: (id: string) => Promise<void>;
   
   addFolder: (name: string, icon?: string, color?: string) => Promise<void>;
+  updateFolder: (id: string, data: { name: string; icon?: string; color?: string }) => Promise<void>;
   deleteFolder: (id: string) => Promise<void>;
+  setEditingFolder: (folder: Folder | null) => void;
 
   setViewMode: (mode: ViewMode) => void;
   setSortOption: (sort: SortOption) => void;
@@ -70,6 +73,7 @@ export const useBookmarkStore = create<BookmarkState>()(
       isAddModalOpen: false,
       editingBookmark: null,
       isFolderModalOpen: false,
+      editingFolder: null,
       deletingBookmarkId: null,
       isSyncing: false,
       toasts: [],
@@ -453,6 +457,39 @@ export const useBookmarkStore = create<BookmarkState>()(
           }
         }
       },
+
+      updateFolder: async (id, data) => {
+        // Optimistic update
+        set((state) => ({
+          folders: state.folders.map((f) =>
+            f.id === id ? { ...f, name: data.name, icon: data.icon ?? f.icon, color: data.color ?? f.color } : f
+          ),
+        }));
+        get().addToast('Folder Diperbarui', `Koleksi "${data.name}" berhasil diubah.`, 'success');
+
+        const isDemo = localStorage.getItem('tautanku_demo_session');
+        if (supabase && isSupabaseConfigured && !isDemo) {
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const currentUserId = sessionData?.session?.user?.id;
+            if (!currentUserId) return;
+
+            const { error } = await supabase
+              .from('folders')
+              .update({ name: data.name, icon: data.icon, color: data.color })
+              .eq('id', id)
+              .eq('user_id', currentUserId);
+
+            if (error) {
+              console.error('Gagal update folder di Supabase:', error);
+            }
+          } catch (err) {
+            console.error('Gagal memperbarui folder di Supabase:', err);
+          }
+        }
+      },
+
+      setEditingFolder: (folder) => set({ editingFolder: folder }),
 
       setViewMode: (mode) => set({ viewMode: mode }),
       setSortOption: (sort) => set({ sortOption: sort }),

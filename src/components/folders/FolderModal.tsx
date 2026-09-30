@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   FolderPlus, 
+  Pencil,
+  Trash2,
   Briefcase, 
   Sparkles, 
   BookOpen, 
@@ -10,7 +12,8 @@ import {
   Bookmark, 
   Compass, 
   Heart,
-  Folder as FolderIcon
+  Folder as FolderIcon,
+  AlertTriangle
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 
@@ -36,19 +39,45 @@ const ICON_OPTIONS = [
 ];
 
 export const FolderModal: React.FC = () => {
-  const { isFolderModalOpen, setFolderModalOpen, addFolder } = useBookmarkStore();
+  const {
+    isFolderModalOpen,
+    setFolderModalOpen,
+    editingFolder,
+    setEditingFolder,
+    addFolder,
+    updateFolder,
+    deleteFolder,
+  } = useBookmarkStore();
+
+  const isEditMode = !!editingFolder;
 
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState(COLOR_OPTIONS[0].value);
   const [selectedIcon, setSelectedIcon] = useState('Folder');
   const [error, setError] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Sync form dengan data editingFolder saat modal dibuka
+  useEffect(() => {
+    if (editingFolder) {
+      setName(editingFolder.name);
+      setSelectedColor(editingFolder.color || COLOR_OPTIONS[0].value);
+      setSelectedIcon(editingFolder.icon || 'Folder');
+    } else {
+      setName('');
+      setSelectedColor(COLOR_OPTIONS[0].value);
+      setSelectedIcon('Folder');
+    }
+    setError('');
+    setShowDeleteConfirm(false);
+  }, [editingFolder, isFolderModalOpen]);
 
   if (!isFolderModalOpen) return null;
 
   const handleClose = () => {
-    setName('');
-    setError('');
+    setEditingFolder(null);
     setFolderModalOpen(false);
+    setShowDeleteConfirm(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -58,7 +87,22 @@ export const FolderModal: React.FC = () => {
       return;
     }
 
-    addFolder(name.trim(), selectedIcon, selectedColor);
+    if (isEditMode && editingFolder) {
+      updateFolder(editingFolder.id, {
+        name: name.trim(),
+        icon: selectedIcon,
+        color: selectedColor,
+      });
+    } else {
+      addFolder(name.trim(), selectedIcon, selectedColor);
+    }
+    handleClose();
+  };
+
+  const handleDelete = () => {
+    if (editingFolder) {
+      deleteFolder(editingFolder.id);
+    }
     handleClose();
   };
 
@@ -76,20 +120,21 @@ export const FolderModal: React.FC = () => {
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 p-6 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10"
         >
+          {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800/80 mb-5">
             <div className="flex items-center gap-2.5">
               <div 
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"
                 style={{ backgroundColor: selectedColor }}
               >
-                <FolderPlus className="w-4 h-4" />
+                {isEditMode ? <Pencil className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
               </div>
               <div>
                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                  Buat Koleksi / Folder Baru
+                  {isEditMode ? 'Edit Koleksi / Folder' : 'Buat Koleksi / Folder Baru'}
                 </h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Kelompokkan tautan berdasarkan topik atau proyek
+                  {isEditMode ? `Ubah nama, warna, atau ikon "${editingFolder?.name}"` : 'Kelompokkan tautan berdasarkan topik atau proyek'}
                 </p>
               </div>
             </div>
@@ -102,6 +147,37 @@ export const FolderModal: React.FC = () => {
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Delete Confirmation */}
+          {showDeleteConfirm && (
+            <div className="mb-4 p-4 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">Hapus Folder?</p>
+                  <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">
+                    Folder <strong>"{editingFolder?.name}"</strong> akan dihapus. Tautan di dalamnya tidak ikut terhapus, hanya dikategorikan ulang.
+                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold transition-colors"
+                    >
+                      Ya, Hapus
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(false)}
+                      className="px-3 py-1.5 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-xs font-medium transition-colors"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -173,20 +249,36 @@ export const FolderModal: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 transition-all"
-              >
-                Buat Folder
-              </button>
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+              {/* Tombol hapus (hanya mode edit) */}
+              {isEditMode ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Hapus Folder
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-lg shadow-indigo-600/30 transition-all"
+                >
+                  {isEditMode ? 'Simpan Perubahan' : 'Buat Folder'}
+                </button>
+              </div>
             </div>
           </form>
         </motion.div>
