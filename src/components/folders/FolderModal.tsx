@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -56,6 +56,7 @@ export const FolderModal: React.FC = () => {
   const [selectedIcon, setSelectedIcon] = useState('Folder');
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const mouseDownOnBackdrop = useRef(false);
 
   // Sync form dengan data editingFolder saat modal dibuka
   useEffect(() => {
@@ -110,13 +111,16 @@ export const FolderModal: React.FC = () => {
     <AnimatePresence>
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-md"
-        onClick={handleClose}
+        onMouseDown={() => { mouseDownOnBackdrop.current = true; }}
+        onMouseUp={() => { mouseDownOnBackdrop.current = false; }}
+        onClick={() => { if (mouseDownOnBackdrop.current) handleClose(); }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.15 }}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 p-6 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10"
         >

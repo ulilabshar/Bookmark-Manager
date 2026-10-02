@@ -32,6 +32,7 @@ export const BookmarkFormModal: React.FC = () => {
   const [urlError, setUrlError] = useState('');
 
   const urlInputRef = useRef<HTMLInputElement>(null);
+  const mouseDownOnBackdrop = useRef(false);
 
   // Sync state when editing or opening
   useEffect(() => {
@@ -144,13 +145,16 @@ export const BookmarkFormModal: React.FC = () => {
     <AnimatePresence>
       <div 
         className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-md overflow-y-auto"
-        onClick={handleClose}
+        onMouseDown={() => { mouseDownOnBackdrop.current = true; }}
+        onMouseUp={() => { mouseDownOnBackdrop.current = false; }}
+        onClick={() => { if (mouseDownOnBackdrop.current) handleClose(); }}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           className="relative w-full max-w-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 p-6 text-zinc-900 dark:text-zinc-100 shadow-2xl backdrop-blur-xl ring-1 ring-black/5 dark:ring-white/10 my-8"
         >
