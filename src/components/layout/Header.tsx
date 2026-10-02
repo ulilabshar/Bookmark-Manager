@@ -9,11 +9,13 @@ import {
   X,
   Sun,
   Moon,
-  LogOut
+  LogOut,
+  FileDown,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { SortOption } from '../../types';
+import { exportBookmarksToPDF } from '../../utils/exportPDF';
 
 export const Header: React.FC = () => {
   const { user, signOut } = useAuthStore();
@@ -28,6 +30,7 @@ export const Header: React.FC = () => {
     setMobileMenuOpen,
     activeFilter,
     bookmarks,
+    folders,
     theme,
     toggleTheme 
   } = useBookmarkStore();
@@ -147,6 +150,17 @@ export const Header: React.FC = () => {
             <List className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Unduh PDF */}
+        <button
+          type="button"
+          onClick={() => exportBookmarksToPDF(bookmarks, folders)}
+          title={`Unduh ${bookmarks.length} tautan sebagai PDF`}
+          disabled={bookmarks.length === 0}
+          className="p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 hover:border-indigo-200 dark:hover:border-indigo-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <FileDown className="w-4 h-4" />
+        </button>
 
         {/* Main "Tambah Tautan" Button */}
         <button
