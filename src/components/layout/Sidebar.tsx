@@ -11,10 +11,38 @@ import {
   X,
   LogOut,
   Pencil,
-  Trash2
+  Trash2,
+  Folder as FolderIconDefault,
+  Briefcase,
+  Sparkles,
+  BookOpen,
+  Code2,
+  Compass,
+  Heart,
+  type LucideIcon,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { useAuthStore } from '../../store/useAuthStore';
+
+const FOLDER_ICON_MAP: Record<string, LucideIcon> = {
+  Folder: FolderIconDefault,
+  Briefcase,
+  Sparkles,
+  BookOpen,
+  Code2,
+  Bookmark,
+  Compass,
+  Heart,
+};
+
+const FolderIconRenderer: React.FC<{ name?: string; color?: string; className?: string }> = ({
+  name = 'Folder',
+  color = '#6366f1',
+  className = 'w-3.5 h-3.5 shrink-0',
+}) => {
+  const Icon = FOLDER_ICON_MAP[name] ?? FolderIconDefault;
+  return <Icon className={className} style={{ color }} />;
+};
 
 export const Sidebar: React.FC = () => {
   const {
@@ -235,9 +263,10 @@ export const Sidebar: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: folder.color || '#6366f1' }}
+                      <FolderIconRenderer
+                        name={folder.icon}
+                        color={folder.color || '#6366f1'}
+                        className="w-3.5 h-3.5 shrink-0"
                       />
                       {!isSidebarCollapsed && (
                         <span className="truncate pr-12">{folder.name}</span>
