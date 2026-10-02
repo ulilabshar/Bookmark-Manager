@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Star, 
   ExternalLink, 
@@ -74,15 +73,9 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      whileHover={{ y: -3 }}
-      transition={{ duration: 0.2 }}
+    <div
       onClick={handleOpen}
-      className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200/90 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/60 p-5 backdrop-blur-md transition-all duration-300 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/90 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer"
+      className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200/90 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/60 p-5 backdrop-blur-md transition-all duration-200 hover:border-zinc-300 dark:hover:border-zinc-700/80 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/90 hover:shadow-xl hover:shadow-indigo-500/5 cursor-pointer"
     >
       <div>
         {/* Top bar: Favicon, Domain, and Quick Star */}
@@ -221,6 +214,6 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };

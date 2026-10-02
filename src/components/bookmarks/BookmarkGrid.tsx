@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { BookmarkX, Plus, FilterX } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { BookmarkCard } from './BookmarkCard';
@@ -110,11 +109,7 @@ export const BookmarkGrid: React.FC = () => {
 
       {/* Empty State */}
       {filteredBookmarks.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 px-4 text-center rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/20 my-4"
-        >
+        <div className="flex flex-col items-center justify-center py-20 px-4 text-center rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-900/20 my-4">
           <div className="w-16 h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center mb-4 text-zinc-400 dark:text-zinc-500 shadow-sm">
             {hasFilterActive ? (
               <FilterX className="w-7 h-7 text-zinc-400 dark:text-zinc-500" />
@@ -156,31 +151,24 @@ export const BookmarkGrid: React.FC = () => {
               </button>
             )}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Grid or List View Rendering */}
       {filteredBookmarks.length > 0 && (
         <div>
           {viewMode === 'grid' ? (
-            <motion.div 
-              layout
-              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
-            >
-              <AnimatePresence mode="popLayout">
-                {filteredBookmarks.map((bookmark) => (
-                  <BookmarkCard key={bookmark.id} bookmark={bookmark} />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredBookmarks.map((bookmark) => (
+                <BookmarkCard key={bookmark.id} bookmark={bookmark} />
+              ))}
+            </div>
           ) : (
-            <motion.div layout className="flex flex-col gap-2">
-              <AnimatePresence mode="popLayout">
-                {filteredBookmarks.map((bookmark) => (
-                  <BookmarkRow key={bookmark.id} bookmark={bookmark} />
-                ))}
-              </AnimatePresence>
-            </motion.div>
+            <div className="flex flex-col gap-2">
+              {filteredBookmarks.map((bookmark) => (
+                <BookmarkRow key={bookmark.id} bookmark={bookmark} />
+              ))}
+            </div>
           )}
         </div>
       )}

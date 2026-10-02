@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Star, 
   ExternalLink, 
@@ -65,12 +64,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({ bookmark }) => {
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 0.15 }}
+    <div
       onClick={handleOpen}
       className="group flex items-center justify-between gap-4 px-4 py-3 rounded-xl border border-zinc-200/90 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-900/40 hover:bg-zinc-50 dark:hover:bg-zinc-900/90 hover:border-zinc-300 dark:hover:border-zinc-700/80 transition-all cursor-pointer backdrop-blur-sm shadow-xs"
     >
@@ -187,6 +181,6 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({ bookmark }) => {
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
