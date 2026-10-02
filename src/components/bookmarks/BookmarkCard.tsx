@@ -8,11 +8,11 @@ import {
   Pencil, 
   Trash2, 
   Folder as FolderIcon,
-  Globe
 } from 'lucide-react';
 import type { Bookmark } from '../../types';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
-import { extractDomain, getFaviconUrl, formatDateIndonesian } from '../../utils/helpers';
+import { extractDomain, formatDateIndonesian } from '../../utils/helpers';
+import { FaviconImage } from './FaviconImage';
 
 interface BookmarkCardProps {
   bookmark: Bookmark;
@@ -29,11 +29,9 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
   } = useBookmarkStore();
   
   const [copied, setCopied] = useState(false);
-  const [faviconError, setFaviconError] = useState(false);
 
   const domain = extractDomain(bookmark.url);
   const folder = folders.find((f) => f.id === bookmark.folderId);
-  const favicon = getFaviconUrl(bookmark.url);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -91,17 +89,7 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
         <div className="flex items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700/60 flex items-center justify-center overflow-hidden shrink-0 shadow-xs group-hover:border-zinc-300 dark:group-hover:border-zinc-600 transition-colors">
-              {!faviconError && favicon ? (
-                <img
-                  src={favicon}
-                  alt={domain}
-                  onError={() => setFaviconError(true)}
-                  className="w-4 h-4 object-contain"
-                  loading="lazy"
-                />
-              ) : (
-                <Globe className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-              )}
+              <FaviconImage url={bookmark.url} size="md" />
             </div>
             <span className="text-xs font-mono font-medium text-zinc-500 dark:text-zinc-400 truncate group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors">
               {domain}

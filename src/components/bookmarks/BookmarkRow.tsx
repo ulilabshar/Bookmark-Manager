@@ -6,12 +6,12 @@ import {
   Copy, 
   Check, 
   Pencil, 
-  Trash2, 
-  Globe 
+  Trash2,
 } from 'lucide-react';
 import type { Bookmark } from '../../types';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
-import { extractDomain, getFaviconUrl, formatDateIndonesian } from '../../utils/helpers';
+import { extractDomain, formatDateIndonesian } from '../../utils/helpers';
+import { FaviconImage } from './FaviconImage';
 
 interface BookmarkRowProps {
   bookmark: Bookmark;
@@ -28,11 +28,9 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({ bookmark }) => {
   } = useBookmarkStore();
 
   const [copied, setCopied] = useState(false);
-  const [faviconError, setFaviconError] = useState(false);
 
   const domain = extractDomain(bookmark.url);
   const folder = folders.find((f) => f.id === bookmark.folderId);
-  const favicon = getFaviconUrl(bookmark.url);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,17 +92,7 @@ export const BookmarkRow: React.FC<BookmarkRowProps> = ({ bookmark }) => {
         </button>
 
         <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800/90 border border-zinc-200 dark:border-zinc-700/50 flex items-center justify-center shrink-0 overflow-hidden">
-          {!faviconError && favicon ? (
-            <img
-              src={favicon}
-              alt={domain}
-              onError={() => setFaviconError(true)}
-              className="w-3.5 h-3.5 object-contain"
-              loading="lazy"
-            />
-          ) : (
-            <Globe className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-          )}
+          <FaviconImage url={bookmark.url} size="sm" />
         </div>
 
         <div className="min-w-0 flex-1">
